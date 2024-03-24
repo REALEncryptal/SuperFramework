@@ -5,3 +5,4 @@ local SuperPowers = script.SuperPowers
 SuperEngine
     :DiscoverSuperPower(SuperPowers.WeaponController)
     :InitPowers()
+    :Finish(script)

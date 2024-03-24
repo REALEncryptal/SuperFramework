@@ -36,4 +36,15 @@ function SuperEngine:InitPowers(): SuperEngine
 	return self
 end
 
+function SuperEngine:Finish(this): SuperEngine
+	require(script.Libraries.Librarian):Init(
+		unpack(game.ReplicatedStorage.Shared:GetDescendants()),
+		unpack(this.GetDescendants())
+	)
+
+	print("SuperEngine ready")
+
+	return self
+end
+
 return SuperEngine

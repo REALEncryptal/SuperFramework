@@ -8,6 +8,8 @@ export type SuperEngine = {
 function SuperEngine.new()
 	local self = setmetatable({}, SuperEngine)
 
+	shared.Assets = game.ReplicatedStorage.Assets
+
 	self.Powers = {}
 
 	return self

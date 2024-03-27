@@ -1,3 +1,4 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SuperEngine = {}
 SuperEngine.__index = SuperEngine
 
@@ -15,8 +16,8 @@ function SuperEngine.new()
 	return self
 end
 
-function SuperEngine:DiscoverSuperPower(self, Power: ModuleScript): SuperEngine
-	print("Discovered SuperPower:", Power.Name, "with priority", Power)
+function SuperEngine:DiscoverSuperPower(Power: ModuleScript): SuperEngine
+	print("Discovered SuperPower:", Power.Name)
 	local Power = require(Power)
 	table.insert(self.Powers, Power)
 
@@ -37,12 +38,14 @@ function SuperEngine:InitPowers(): SuperEngine
 end
 
 function SuperEngine:Finish(this): SuperEngine
-	require(script.Libraries.Librarian):Init(
-		unpack(game.ReplicatedStorage.Shared:GetDescendants()),
-		unpack(this.GetDescendants())
+
+	require(ReplicatedStorage.Shared.Libraries.Librarian):Init(
+		{
+			ReplicatedStorage.Shared,
+			this
+		}
 	)
 
-	print("SuperEngine ready")
 
 	return self
 end

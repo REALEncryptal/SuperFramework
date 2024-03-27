@@ -12,16 +12,21 @@ local Librarian = {}
 ]]
 
 function Librarian.Import(Name)
-    return Librarian.Modules[Name]
+    return require(Librarian.Modules[Name])
 end
 
-function Librarian:Init(...)
+function Librarian:Init(Paths)
     Librarian.Modules = {}
 
-    for _, Module in ipairs({...}) do
-        Librarian.Modules[Module.Name] = require(Module)
+    for _, Path in ipairs(Paths) do
+        for _, Module in ipairs(Path:GetDescendants()) do
+            if Module:IsA("ModuleScript") then
+                print("Discovered Module:", Module.Name)
+                Librarian.Modules[Module.Name] = Module
+            end
+        end
     end
-
+    
     shared.Import = Librarian.Import
 end
 

@@ -2,7 +2,10 @@ local SuperEngine = require(game:GetService("ReplicatedStorage").Shared.SuperEng
 
 local SuperPowers = script.SuperPowers
 
+for _, Power in ipairs(SuperPowers:GetChildren()) do
+    SuperEngine:DiscoverSuperPower(Power)
+end 
+
 SuperEngine
-    :DiscoverSuperPower(SuperPowers.WeaponController)
-    :InitPowers()
     :Finish(script)
+    :InitPowers()

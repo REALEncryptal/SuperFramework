@@ -1,170 +1,73 @@
 --[[
-class Spring
+    [Spring3]
+Created by Encryptal
+2023-11-14
 
-https://github.com/Quenty/NevermoreEngine/blob/5a429e871d54646ba54011c18321e77afa76d657/Modules/Shared/Physics/Spring.lua
+Sources
 
-Description:
-	A physical model of a spring, useful in many applications. Properties only evaluate
-	upon index making this model good for lazy applications
+https://forum.unity.com/threads/spring-simulation.245592/
+https://www.khanacademy.org/science/physics/work-and-energy/hookes-law/a/what-is-hookes-law
 
-API:
-	Spring = Spring.new(number position)
-		Creates a new spring in 1D
-	Spring = Spring.new(Vector3 position)
-		Creates a new spring in 3D
+youtube video that i cant find    
 
-	Spring.Position
-		Returns the current position
-	Spring.Velocity
-		Returns the current velocity
-	Spring.Target
-		Returns the target
-	Spring.Damper
-		Returns the damper
-	Spring.Speed
-		Returns the speed
-
-	Spring.Target = number/Vector3
-		Sets the target
-	Spring.Position = number/Vector3
-		Sets the position
-	Spring.Velocity = number/Vector3
-		Sets the velocity
-	Spring.Damper = number [0, 1]
-		Sets the spring damper, defaults to 1
-	Spring.Speed = number [0, infinity)
-		Sets the spring speed, defaults to 1
-
-	Spring:TimeSkip(number DeltaTime)
-		Instantly skips the spring forwards by that amount of now
-	Spring:Impulse(number/Vector3 velocity)
-		Impulses the spring, increasing velocity by the amount given
 ]]
 
-
 local Spring = {}
+Spring.__index = Spring
 
---- Creates a new spring
--- @param initial A number or Vector3 (anything with * number and addition/subtraction defined)
-function Spring.new(initial)
-	local target = initial or 0
+local Quality = 8
+local V_ZERO = Vector3.zero
 
-	return setmetatable({
-		_time0 = tick();
-		_position0 = target;
-		_velocity0 = 0*target;
-		_target = target;
-		_damper = 1;
-		_speed = 1;
-	}, Spring)
+local function MaxClamp(list, n)
+    local new = table.clone(list)
+    
+    for i,v in pairs(new) do
+        if v>n or v < -n then
+            new[i] = 0
+        end
+    end
+    
+    return new
 end
 
---- Impulse the spring with a change in velocity
--- @param velocity The velocity to impulse with
-function Spring:Impulse(velocity)
-	self.Velocity = self.Velocity + velocity
+function Spring.new(mass:number, force:number, damping:number, speed:number)
+    local self = setmetatable({},Spring)
+    
+    -- Consts
+    self.Mass = mass or 5
+    self.Force = force or 50
+    self.Damping = damping or 4
+    self.Speed = speed or 4
+
+
+    
+    -- Dynamics
+    self.Target     = V_ZERO
+    self.Position = V_ZERO
+    self.Velocity = V_ZERO
+
+    return self
 end
 
---- Skip forwards in now
--- @param delta now to skip forwards
-function Spring:TimeSkip(delta)
-	local now = tick()
-	local position, velocity = self:_positionVelocity(now+delta)
-	self._position0 = position
-	self._velocity0 = velocity
-	self._time0 = now
+function Spring:Shove(force:Vector3)
+    self.Velocity += force
 end
 
-function Spring:__index(index)
-	if Spring[index] then
-		return Spring[index]
-	elseif index == "Value" or index == "Position" or index == "p" then
-		local position, _ = self:_positionVelocity(tick())
-		return position
-	elseif index == "Velocity" or index == "v" then
-		local _, velocity = self:_positionVelocity(tick())
-		return velocity
-	elseif index == "Target" or index == "t" then
-		return self._target
-	elseif index == "Damper" or index == "d" then
-		return self._damper
-	elseif index == "Speed" or index == "s" then
-		return self._speed
-	else
-		error(("%q is not a valid member of Spring"):format(tostring(index)), 2)
-	end
-end
-
-function Spring:__newindex(index, value)
-	local now = tick()
-
-	if index == "Value" or index == "Position" or index == "p" then
-		local _, velocity = self:_positionVelocity(now)
-		self._position0 = value
-		self._velocity0 = velocity
-	elseif index == "Velocity" or index == "v" then
-		local position, _ = self:_positionVelocity(now)
-		self._position0 = position
-		self._velocity0 = value
-	elseif index == "Target" or index == "t" then
-		local position, velocity = self:_positionVelocity(now)
-		self._position0 = position
-		self._velocity0 = velocity
-		self._target = value
-	elseif index == "Damper" or index == "d" then
-		local position, velocity = self:_positionVelocity(now)
-		self._position0 = position
-		self._velocity0 = velocity
-		self._damper = math.clamp(value, 0, 1)
-	elseif index == "Speed" or index == "s" then
-		local position, velocity = self:_positionVelocity(now)
-		self._position0 = position
-		self._velocity0 = velocity
-		self._speed = value < 0 and 0 or value
-	else
-		error(("%q is not a valid member of Spring"):format(tostring(index)), 2)
-	end
-
-	self._time0 = now
-end
-
-function Spring:_positionVelocity(now)
-	local p0 = self._position0
-	local v0 = self._velocity0
-	local p1 = self._target
-	local d = self._damper
-	local s = self._speed
-
-	local t = s*(now - self._time0)
-	local d2 = d*d
-
-	local h, si, co
-	if d2 < 1 then
-		h = math.sqrt(1 - d2)
-		local ep = math.exp(-d*t)/h
-		co, si = ep*math.cos(h*t), ep*math.sin(h*t)
-	elseif d2 == 1 then
-		h = 1
-		local ep = math.exp(-d*t)/h
-		co, si = ep, ep*t
-	else
-		h = math.sqrt(d2 - 1)
-		local u = math.exp((-d + h)*t)/(2*h)
-		local v = math.exp((-d - h)*t)/(2*h)
-		co, si = u + v, u - v
-	end
-
-	local a0 = h*co + d*si
-	local a1 = 1 - (h*co + d*si)
-	local a2 = si/s
-
-	local b0 = -s*si
-	local b1 = s*si
-	local b2 = h*co - d*si
-
-	return
-		a0*p0 + a1*p1 + a2*v0,
-		b0*p0 + b1*p1 + b2*v0
+function Spring:Update(DeltaTime:number)
+    local sdt = 0
+    
+    if DeltaTime > 1 then
+        sdt = 1 * self.Speed
+    elseif DeltaTime < 1 then
+        sdt = DeltaTime * self.Speed
+    end
+    
+    for i = 1, Quality do
+        self.Velocity = self.Velocity + ((((self.Target - self.Position) * self.Force) / self.Mass) - self.Velocity * self.Damping) * (sdt/Quality)
+        self.Position = self.Position + self.Velocity * (sdt/Quality)
+    end
+    
+    return self.Position
 end
 
 return Spring

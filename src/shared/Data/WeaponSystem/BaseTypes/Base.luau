@@ -31,8 +31,10 @@ local DefaultEquipAnim = ""
 
 local Spring = shared.Import "Spring3"
 local PlayerUtil = shared.Import "Player"
+local SoundService = shared.Import "SoundService"
 
 local UserInputService = game:GetService("UserInputService")
+
 
 function BaseTool.new(Data)
     local self = setmetatable({}, BaseTool)
@@ -42,21 +44,24 @@ function BaseTool.new(Data)
         Equipped = false,
     }
 
-    self.Data = Data
+    self.Data = require(Data)
     self.Animations = {}
 
     self.Offsets = {
-        Base = Data.Offsets.Base or CFrame.new(),
+        Base = self.Data.Offsets.Base or CFrame.new(),
     }
 
     self.Springs = {
-        Sway = Spring.new(),
+        Sway = Spring.new(5, 50, 6, 4),
         Bob = Spring.new(),
         Jump = Spring.new(),
     }
 
     --setup
-    self.Viewmodel = Data.Viewmodel or shared.Assets.WeaponSystem.Viewmodels.Default
+    self.Viewmodel = self.Data.Viewmodel or shared.Assets.WeaponSystem.Viewmodels.Default
+    self.Viewmodel = self.Viewmodel:Clone()
+    self.Viewmodel.Parent = game.Workspace.CurrentCamera
+
     self.Animator = self.Viewmodel:WaitForChild("Humanoid"):WaitForChild("Animator")
 
     -- load animations
@@ -74,17 +79,20 @@ function BaseTool.new(Data)
         self.Equipped = true
     end)
 
+    self.Animations.Idle:Play()
+
+
     return self
 end
 
 function BaseTool:Equip()
     self.Animations.Equip:Play()
+    SoundService:PlayRandomSound(shared.Assets.WeaponSystem.Sounds.Equip)
 end
 
 function BaseTool:Unequip()
     self.ToolData.Equipped = false
 
-    self.Animations.Reload:Stop()
     self.Animations.Equip:Stop()
 
     self.Viewmodel.Parent = game.ReplicatedStorage
@@ -99,30 +107,32 @@ function BaseTool:Update(DeltaTime)
     self:FunctionalUpdate(DeltaTime)
 
     -- sway
-    local MouseDelta = UserInputService:GetMouseDelta()
-    self.Springs.Sway.Target = Vector3.new(MouseDelta.X, MouseDelta.Y, 0)
+    local MouseDelta = UserInputService:GetMouseDelta() / 100
+    self.Springs.Sway:Shove(Vector3.new(MouseDelta.X, MouseDelta.Y, 0))
 
     -- bob
     local Walking = PlayerUtil.IsWalking()
 
     if Walking then
-        self.Springs.Target = Vector3.new(
-            math.sin(tick() * 2) * 0.1,
-            math.cos(tick() * 4) * 0.1,
+        local TimeMult = 3
+        self.Springs.Bob:Shove(Vector3.new(
+            math.sin(tick() * 2*TimeMult) * 0.07,
+            math.cos(tick() * 4*TimeMult) * 0.1,
             0
-        )
-    end
-
-    -- update springs
-    for _, Spring in pairs(self.Springs) do
-        Spring:TimeSkip(DeltaTime)
+        ))
     end
 
     -- total offsets
-    local TotalOffset = self.Offsets.Base * self.Springs.Sway.Position * self.Springs.Bob.Position * self.Springs.Jump.Position
+
+    local TotalOffset = Vector3.new()
+
+    for _, Spring in pairs(self.Springs) do
+        TotalOffset += Spring:Update(DeltaTime)
+    end
 
     -- update viewmodel
-    self.Viewmodel:SetPrimaryPartCFrame(TotalOffset)
+    self.Viewmodel:SetPrimaryPartCFrame(workspace.CurrentCamera.CFrame * self.Offsets.Base)
+    self.Viewmodel.PrimaryPart.CFrame *= CFrame.new(TotalOffset)
 end
 
 return BaseTool
